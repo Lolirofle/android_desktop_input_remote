@@ -1,0 +1,8 @@
+[package]
+name = "input_server"
+version = "0.1.0"
+authors = ["Lolirofle <lolipopple@hotmail.com>"]
+
+[dependencies]
+byteorder = "0.4.2"
+libxdo = "0.4.0"
