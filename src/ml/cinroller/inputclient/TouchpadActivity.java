@@ -36,8 +36,25 @@ public class TouchpadActivity extends Activity implements OnTouchListener{
 	    	case MotionEvent.ACTION_DOWN:
 	    		try{
     	    		new SendData().execute(new TouchpadData(
-    	    			(int)event.getAxisValue(MotionEvent.AXIS_X),
-    	    			(int)event.getAxisValue(MotionEvent.AXIS_Y)
+    	    			TouchpadData.Type.PRESS,
+    	    			event.getPressure(),
+    	    			event.getSize(),
+    	    			event.getAxisValue(MotionEvent.AXIS_X),
+    	    			event.getAxisValue(MotionEvent.AXIS_Y)
+    	    		)).get();
+	    		}catch(Exception e){
+	    			Log.e("SendData","Exception: " + e.getMessage());
+	                Log.e("SendData","Exception: " + e.toString());
+	    		}
+	    		return true;
+	    	case MotionEvent.ACTION_UP:
+	    		try{
+    	    		new SendData().execute(new TouchpadData(
+    	    			TouchpadData.Type.RELEASE,
+    	    			event.getPressure(),
+    	    			event.getSize(),
+    	    			event.getAxisValue(MotionEvent.AXIS_X),
+    	    			event.getAxisValue(MotionEvent.AXIS_Y)
     	    		)).get();
 	    		}catch(Exception e){
 	    			Log.e("SendData","Exception: " + e.getMessage());
@@ -47,8 +64,11 @@ public class TouchpadActivity extends Activity implements OnTouchListener{
 	    	case MotionEvent.ACTION_MOVE:
 	    		try{
     	    		new SendData().execute(new TouchpadData(
-    	    			(int)event.getAxisValue(MotionEvent.AXIS_X),
-    	    			(int)event.getAxisValue(MotionEvent.AXIS_Y)
+	    				TouchpadData.Type.MOVE,
+    	    			event.getPressure(),
+    	    			event.getSize(),
+    	    			event.getAxisValue(MotionEvent.AXIS_X),
+    	    			event.getAxisValue(MotionEvent.AXIS_Y)
     	    		)).get();
 	    		}catch(Exception e){
 	    			Log.e("SendData","Exception: " + e.getMessage());

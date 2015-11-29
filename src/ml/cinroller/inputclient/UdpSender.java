@@ -19,12 +19,15 @@ public class UdpSender{
     
     public boolean send(TouchpadData data){
     	try{
-        	final int LEN = 4*2;
+        	final int LEN = 4*5;
         	ByteBuffer bytes= ByteBuffer.allocate(LEN);
         	bytes.order(ByteOrder.LITTLE_ENDIAN);
-        	
-        	bytes.putInt(data.x);
-        	bytes.putInt(data.y);
+
+        	bytes.putInt(data.type.n);
+        	bytes.putFloat(data.pressure);
+        	bytes.putFloat(data.size);
+        	bytes.putFloat(data.x);
+        	bytes.putFloat(data.y);
         	
         	DatagramPacket packet = new DatagramPacket(bytes.array(),LEN,this.address);
         	this.socket.send(packet);
