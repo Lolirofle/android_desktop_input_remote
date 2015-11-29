@@ -5,4 +5,6 @@ authors = ["Lolirofle <lolipopple@hotmail.com>"]
 
 [dependencies]
 byteorder = "0.4.2"
+enum_traits = "0.1.2"
+enum_traits_macros = "0.1.2"
 libxdo = "0.4.0"
