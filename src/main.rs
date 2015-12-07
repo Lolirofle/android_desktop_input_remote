@@ -101,8 +101,8 @@ fn main(){
 		const MULTIPLIER: f32 = 1.0/80.0;
 
 		let xdo = libxdo::XDo::new(None).unwrap();
-		let mut repeat: Option<(f32,f32,u32)> = None;
-		fn repeat_from_client_data(client_data: (f32,f32)) -> (f32,f32,u32){
+		let mut repeat: Option<(f32,f32,u32,bool)> = None;
+		fn repeat_from_client_data((x,y): (f32,f32)) -> (f32,f32,u32){
 			//Recommendations: abs(DATA)*sleep_compensation >= 1.0, abs(DATA)*sleep_compensation mod 1.0 = 0.0
 			//Requirements: SLEEP_MS.0 <= sleep_ms <= SLEEP_MS.1
 			//Solve for sleep_compensation and sleep_ms:
@@ -116,31 +116,11 @@ fn main(){
 			//  sleep_compensation * sleep_ms = 1.0
 			//  sleep_compensation = 1.0/sleep_ms
 
-			/*if client_data != (0.0,0.0){
-				let min_data = {
-					let (x,y) = (client_data.0.abs(),client_data.1.abs());
-					if y==0.0 || x<y{x}else{y}
-				};
-				for sleep_ms in (1..).map(|i| (min_data/(i as f32)) as u32){
-					println!("Searching {} with {}",sleep_ms,min_data);
-					if sleep_ms >= SLEEP_MS.0{
-						if sleep_ms <= SLEEP_MS.1{
-							println!("Found {}",sleep_ms);
-						}else{
-							println!("Not found {}",sleep_ms)
-						}
-						break;
-					}
-				}
-			}*/
-
 			let sleep_ms = SLEEP_MS.0;
-			let client_data = (
-				client_data.0/*.abs().powf(POW) * client_data.0.signum()*/ * MULTIPLIER * (sleep_ms as f32),
-				client_data.1/*.abs().powf(POW) * client_data.1.signum()*/ * MULTIPLIER * (sleep_ms as f32)
-			);
+			let x = client_data.0 * MULTIPLIER * (sleep_ms as f32);
+			let y = client_data.1 * MULTIPLIER * (sleep_ms as f32);
 
-			(client_data.0,client_data.1,sleep_ms)
+			(x,y,sleep_ms)
 		}
 
 		//The accumulated pixels per step
@@ -217,9 +197,7 @@ fn main(){
 				},
 				data::Type::RELEASE => {
 					//Let the repeater cancel any movements (If there were any)
-					if let Err(e) = repeater_sender.send(None){
-						println!("Error: Cannot send through channel: {:?}",e);
-					}
+					if let Err(e) = repeater_sender.send(None){println!("Error: Cannot send through channel: {:?}",e);}
 
 					//Check if no movement were between the press and release => A click
 					if initial_x == data.x && initial_y == data.y{
@@ -236,14 +214,13 @@ fn main(){
 					if let Err(e) = repeater_sender.send(Some((
 						data.x-initial_x,
 						data.y-initial_y
-					))){
-						println!("Error: Cannot send through channel: {:?}",e);
-					}
-					//xdo.move_mouse_relative(((data.x-initial_x)/6.0) as i32,((data.y-initial_y)/6.0) as i32).unwrap()
+					))){println!("Error: Cannot send through channel: {:?}",e);}
 				},
 			},
+
 			//Currently all valid packets have the same size
 			Err(data::DataDeserializeErr::InvalidDataSize(size)) => println!("Error: Expected buffer size 8, got {}",size),
+
 			//Invalid packet
 			Err(data::DataDeserializeErr::InvalidData) => println!("Error: Invalid packet data"),
 		};
