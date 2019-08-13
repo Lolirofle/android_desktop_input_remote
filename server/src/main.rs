@@ -97,11 +97,10 @@ fn main(){
 	let (repeater_sender,repeater_receiver) = mpsc::channel::<Option<(f32,f32)>>();
 	let /*repeater*/_ = thread::spawn(move||{
 		const SLEEP_MS: (u32,u32) = (15,100);
-		//const POW: f32 = 1.3;
 		const MULTIPLIER: f32 = 1.0/80.0;
 
 		let xdo = libxdo::XDo::new(None).unwrap();
-		let mut repeat: Option<(f32,f32,u32,bool)> = None;
+		let mut repeat: Option<(f32,f32,u32/*,bool*/)> = None;
 		fn repeat_from_client_data((x,y): (f32,f32)) -> (f32,f32,u32){
 			//Recommendations: abs(DATA)*sleep_compensation >= 1.0, abs(DATA)*sleep_compensation mod 1.0 = 0.0
 			//Requirements: SLEEP_MS.0 <= sleep_ms <= SLEEP_MS.1
@@ -117,8 +116,8 @@ fn main(){
 			//  sleep_compensation = 1.0/sleep_ms
 
 			let sleep_ms = SLEEP_MS.0;
-			let x = client_data.0 * MULTIPLIER * (sleep_ms as f32);
-			let y = client_data.1 * MULTIPLIER * (sleep_ms as f32);
+			let x = x * MULTIPLIER * (sleep_ms as f32);
+			let y = y * MULTIPLIER * (sleep_ms as f32);
 
 			(x,y,sleep_ms)
 		}
@@ -129,16 +128,23 @@ fn main(){
 			//println!("{:?}, {:?}",repeat,pixels_per_step);
 
 			//When there are data indicating how the movement should repeat for each step (amount of x and y movement, amount of sleep duration)
-			if let Some((x_per_sleep_ms,y_per_sleep_ms,sleep_ms)) = repeat{
+			if let Some((x_per_sleep_ms,y_per_sleep_ms,sleep_ms)) = repeat{//TODO: Copying
+				//Move the mouse relative to its current position using the repeat data if the accumulated pixels per step is greater than 1.0 for each axis
+				if let Err(e) = xdo.move_mouse_relative(
+					{pixels_per_step.0+= x_per_sleep_ms; if pixels_per_step.0.abs() >= 1.0{let tmp = pixels_per_step.0 as i32; pixels_per_step.0-= tmp as f32; tmp}else{0}},
+					{pixels_per_step.1+= y_per_sleep_ms; if pixels_per_step.1.abs() >= 1.0{let tmp = pixels_per_step.1 as i32; pixels_per_step.1-= tmp as f32; tmp}else{0}},
+				){println!("Error: Unable to move cursor: {:?}",e);}
+				thread::sleep(time::Duration::from_millis(sleep_ms as u64));
+
 				//Check if there are new repeat data, and receive it if there are (without waiting for it if it is not yet ready)
 				match repeater_receiver.try_recv(){
-					//When there are data
+					//When there are new data
 					Ok(client_data) => {
 						repeat = client_data.map(repeat_from_client_data);
 						pixels_per_step = (0.0,0.0);
 					},
 
-					//When there are no data yet
+					//When there are no new data (yet)
 					Err(mpsc::TryRecvError::Empty) => {},
 
 					//Probably some error concerning the receiving process
@@ -147,13 +153,6 @@ fn main(){
 						return
 					}
 				};
-
-				//Move the mouse relative to its current position using the repeat data
-				if let Err(e) = xdo.move_mouse_relative(
-					{pixels_per_step.0+= x_per_sleep_ms; if pixels_per_step.0.abs() >= 1.0{let tmp = pixels_per_step.0 as i32; pixels_per_step.0-= tmp as f32; tmp}else{0}},
-					{pixels_per_step.1+= y_per_sleep_ms; if pixels_per_step.1.abs() >= 1.0{let tmp = pixels_per_step.1 as i32; pixels_per_step.1-= tmp as f32; tmp}else{0}},
-				){println!("Error: Unable to move cursor: {:?}",e);}
-				thread::sleep(time::Duration::from_millis(sleep_ms as u64));
 			}else{
 				//Wait for new repeat data, and receive when there are
 				match repeater_receiver.recv(){
@@ -176,6 +175,7 @@ fn main(){
 	let mut initial_x = 0.0;
 	let mut initial_y = 0.0;
 	let mut press_time = None;
+	//let mut release_time = None;//TODO: Double click for dragging
 
 	////////////////////////////////////////////////
 	//Data transfer initialization
@@ -201,7 +201,7 @@ fn main(){
 
 					//Check if no movement were between the press and release => A click
 					if initial_x == data.x && initial_y == data.y{
-						//Check whether it was a long click or short click (in time)
+						//Check whether it was a long click or a short click (in time)
 						match press_time{
 							Some(time) if {let elapsed = time.elapsed(); elapsed.as_secs()>=1 || elapsed.subsec_nanos()>300_000_000}
 							   => if let Err(e) = xdo.click(3){println!("Error: Unable to right click with cursor: {:?}",e);},
